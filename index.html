@@ -633,13 +633,12 @@ footer{padding:64px 0 40px;border-top:1px solid #141417}
         <a class="social" href="https://www.snapchat.com/add/pasciarrino4" target="_blank" rel="noopener" aria-label="Snapchat"><svg aria-hidden="true"><use href="#i-snapchat"/></svg></a>
       </div>
     </div>
-    <form class="reveal" id="inquiry" action="https://formsubmit.co/themagicmatt5@gmail.com" method="POST">
-      <input type="hidden" name="_cc" value="teampasmagic@gmail.com">
-      <input type="hidden" name="_subject" value="New PAS Magic inquiry">
-      <input type="hidden" name="_template" value="table">
-      <input type="hidden" name="_captcha" value="false">
-      <input type="hidden" name="_next" id="f-next" value="">
-      <input type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+    <form class="reveal" id="inquiry" action="https://api.web3forms.com/submit" method="POST">
+      <input type="hidden" name="access_key" value="8aa74e0e-852a-4a5a-895a-b311eff1fa37">
+      <input type="hidden" name="subject" value="New PAS Magic inquiry">
+      <input type="hidden" name="from_name" value="PAS Magic Website">
+      <input type="hidden" name="redirect" id="f-next" value="">
+      <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
       <div class="row2">
         <div class="field"><label for="f-name">Name</label><input id="f-name" name="name" type="text" placeholder="Your name" required></div>
         <div class="field"><label for="f-company">Company</label><input id="f-company" name="company" type="text" placeholder="Brand or agency"></div>
@@ -710,47 +709,43 @@ document.querySelectorAll('.brands .marquee-track,.shot-marquee .marquee-track,.
   var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){run(x.target);io.unobserve(x.target);}});},{threshold:.6});
   nums.forEach(function(el){io.observe(el)});
 })();
-// Inquiry form: emails themagicmatt5@gmail.com and CCs teampasmagic@gmail.com via FormSubmit
+// Inquiry form: emails teampasmagic@gmail.com via Web3Forms
 (function(){
   var form=document.getElementById('inquiry');
   var btn=document.getElementById('f-submit');
   var status=document.getElementById('f-status');
-  var ENDPOINT='https://formsubmit.co/ajax/themagicmatt5@gmail.com';
-  document.getElementById('f-next').value=location.href.split('#')[0]+'#contact';
+  var sent=false;
+  document.getElementById('f-next').value=location.href.split('#')[0].split('?')[0]+'?sent=1#contact';
   function showDone(){
     form.innerHTML='<div class="f-done"><div class="tick"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></div><h3>Message sent.</h3><p>Thanks for reaching out. The PAS Magic team will get back to you shortly.</p></div>';
   }
+  function reset(){btn.disabled=false;btn.textContent='Send Inquiry';}
+  function fail(msg){reset();status.className='f-status err';status.textContent=msg||'Something went wrong. Please try again, or email teampasmagic@gmail.com directly.';}
+  if(/[?&]sent=1/.test(location.search)){showDone();}
+  window.addEventListener('pageshow',function(){if(document.body.contains(btn))reset();});
   form.addEventListener('submit',function(e){
     e.preventDefault();
-    if(form.elements.namedItem('_honey').value)return;
+    if(form.elements.namedItem('botcheck').checked)return;
+    if(location.protocol==='file:'){fail('The form only works on the live website, not when the file is opened from your computer.');return;}
+    var el=form.elements, co=el.namedItem('company').value;
+    el.namedItem('subject').value='New PAS Magic inquiry: '+el.namedItem('type').value+(co?' ('+co+')':'');
     var data={};
     new FormData(form).forEach(function(v,k){data[k]=v;});
-    var co=data.company?' ('+data.company+')':'';
-    data._subject='New PAS Magic inquiry: '+data.type+co;
-    data._replyto=data.email;
-    if(location.protocol==='file:'){status.className='f-status err';status.textContent='The form only works on the live website, not when the file is opened from your computer. Upload it and try again from the site link.';return;}
-    btn.disabled=true;btn.textContent='Sending...';
-    status.className='f-status';status.textContent='';
-    fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(data)})
+    delete data.botcheck; delete data.redirect;
+    btn.disabled=true;btn.textContent='Sending...';status.className='f-status';status.textContent='';
+    var ctrl=('AbortController' in window)?new AbortController():null;
+    var timer=setTimeout(function(){if(ctrl)ctrl.abort();},12000);
+    fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(data),signal:ctrl?ctrl.signal:undefined})
       .then(function(r){return r.json();})
       .then(function(j){
-        if(j.success===true||j.success==='true'){showDone();return;}
-        var msg=(j&&j.message)||'';
-        btn.disabled=false;btn.textContent='Send Inquiry';
-        if(/activat/i.test(msg)){
-          status.className='f-status';
-          status.textContent='Almost there: this form needs a one time activation. Check the inbox for themagicmatt5@gmail.com (and spam) for an email from FormSubmit, click Activate, then send again.';
-        }else if(/web server|HTML file/i.test(msg)||location.protocol==='file:'){
-          status.className='f-status err';
-          status.textContent='The form only works on the live website, not when the file is opened from your computer. Upload it and try again from the site link.';
-        }else{
-          status.className='f-status err';
-          status.textContent=msg?('FormSubmit says: '+msg):'Something went wrong. Please try again.';
-        }
+        clearTimeout(timer);
+        if(j&&j.success){sent=true;showDone();}
+        else{fail(j&&j.message?('Could not send: '+j.message):null);}
       })
       .catch(function(){
-        // Network or browser blocked the quick send: fall back to a normal form post
-        form.submit();
+        clearTimeout(timer);
+        // Slow or blocked: post the form the standard way; Web3Forms sends the visitor back here
+        if(!sent){btn.textContent='Sending...';HTMLFormElement.prototype.submit.call(form);}
       });
   });
 })();
